@@ -329,7 +329,15 @@ class Renderer:
         use_cosine_weighted_sampling: bool = False,
     ) -> Dict:
         """Build the uniforms dictionary for rendering."""
-        focal_length = (0.5 * float(self._render_target.height)) / np.tan(
+        width = 0
+        height = 0
+        if hasattr(self._render_target, "buffer"):
+            width = self._render_target.buffer.shape[1]
+            height = self._render_target.buffer.shape[0]
+        else:
+            width = self._render_target.width
+            height = self._render_target.height
+        focal_length = (0.5 * float(height)) / np.tan(
             np.radians(fov) / 2.0
         )
         uniforms = {
@@ -338,8 +346,8 @@ class Renderer:
                     glm.inverse(view_mat), dtype=np.float32
                 ),
                 "canvasSize": [
-                    self._render_target.width,
-                    self._render_target.height,
+                    width,
+                    height,
                 ],
                 "focalLength": float(focal_length),
             },
@@ -411,6 +419,11 @@ class Renderer:
 
     def clear_render_target(self) -> None:
         """Clear the render target."""
+        if hasattr(self._render_target, "buffer"): # is a pixel array
+            self._render_target.clear()
+            self.num_samples = 1
+            return
+
         if self._render_target.desc.format == spy.Format.rgba8_unorm:
             t = np.uint8
         elif self._render_target.desc.format == spy.Format.rgba32_float:
@@ -499,8 +512,9 @@ class Renderer:
             use_cosine_weighted_sampling=use_cosine_weighted_sampling,
             fresnel_effect=fresnel_effect,
         )
+        tid = spy.grid(shape=(uniforms["camera"]["canvasSize"][1], uniforms["camera"]["canvasSize"][0]))
         self.renderer_module.render(
-            tid=spy.grid(shape=(self._render_target.height, self._render_target.width)),
+            tid=tid,
             uniforms=uniforms,
             currentColor=self._render_target,
             _result=self._render_target,

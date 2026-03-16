@@ -27,6 +27,7 @@ class RendererModules:
     primitive_module: spy.Module
     light_module: spy.Module
     model_module: spy.Module
+    output_module: spy.Module
     renderer_module: spy.Module
 
     def __init__(self, device: spy.Device):
@@ -66,6 +67,10 @@ class RendererModules:
             device=device,
             path="brdf.slang",
         )
+        self.output_module = spy.Module.load_from_file(
+            device=device,
+            path="output.slang",
+        )
         self.renderer_module = spy.Module.load_from_file(
             device=device,
             path="renderer.slang",
@@ -78,5 +83,6 @@ class RendererModules:
                 self.utils_module,
                 self.light_module,
                 self.brdf_module,
+                self.output_module,
             ],
         )
