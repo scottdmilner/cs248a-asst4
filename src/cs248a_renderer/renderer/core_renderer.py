@@ -28,6 +28,7 @@ from cs248a_renderer.model.lights import (
     create_directional_light_buf,
     create_rectangular_light_buf,
 )
+from cs248a_renderer.model.output import create_lpe_buf, LPE
 
 
 class FilteringMethod(Enum):
@@ -57,6 +58,7 @@ class Renderer:
     _bvh_node_buf: spy.NDBuffer | None
     _use_bvh: bool = False
     _max_nodes: int = 0
+    _lpe_buf: spy.NDBuffer
 
     _sphere_sdf_buf: spy.NDBuffer | None
     _sphere_sdf_count: int | None
@@ -112,6 +114,7 @@ class Renderer:
         self.renderer_module = render_modules.renderer_module
         self.material_module = render_modules.material_module
         self.utils_module = render_modules.utils_module
+        self.output_module = render_modules.output_module
 
         # Initialize primitive buffers.
         self._physics_based_material_texture_buf = PhysicsBasedMaterialTextureBuf(
@@ -310,6 +313,9 @@ class Renderer:
             self.light_module, rectangular_lights
         )
         self._rectangular_light_count = len(rectangular_lights)
+    
+    def build_lpes(self, lpes: list[LPE]) -> None:
+        self._lpe_buf = create_lpe_buf(self.output_module, [1])
 
     def _build_render_uniforms(
         self,
@@ -415,6 +421,10 @@ class Renderer:
         uniforms["rectangularLightCount"] = self._rectangular_light_count
 
         uniforms["seed"] = self._seed
+        
+        # LPEs
+        uniforms["LPEs"] = self._lpe_buf
+
         return uniforms
 
     def clear_render_target(self) -> None:

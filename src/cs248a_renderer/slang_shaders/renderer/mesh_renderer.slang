@@ -4,23 +4,39 @@ __include "./mesh_renderer/ray_mesh_intersection.slang";
 __include "./mesh_renderer/mesh_material.slang";
 __include "./mesh_renderer/mesh_illumination.slang";
 
-public struct RayMeshSampleResult
+import output;
+
+public struct RayMeshSampleResult<let N: uint>
 {
     public float t;
     public float3 normal;
-    public float4 color;
+    public Pixel<float4,N> color;
+    // public float4 color;
 }
 
-public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform uniforms, inout RNG rng)
+[ForceInline]
+public void evalLPE(LPEAutomaton<float4> automaton, LPEEvent event) {
+
+}
+
+public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, RendererUniform uniforms, inout RNG rng)
 {
     Ray ray = uniforms.camera.generateRay(uv);
-    float3 radiance = float3(0.0);
+    // float3 radiance = float3(0.0);
     float3 throughput = float3(1.0);
     float t = float.maxValue;
     float3 normalAtFirstHit = float3(0.0);
     const float EPSILON = 1e-2;
     bool renderLight = true;
     float distance = 0.0;
+    Pixel<float4, N> retval;
+
+    LPEAutomaton<float4> testLPE = uniforms.LPEs[0];
+
+    LPEEvent thisEvent = LPEEvent();
+    thisEvent.ray = RayType.Camera;
+
+    testLPE.advance(thisEvent, float4(0));
 
     for (int depth = 0; depth < uniforms.pathTraceDepth; depth++)
     {
@@ -29,6 +45,9 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
         const int maxGlassBounce = 3;
         for (int i = 0; i < maxGlassBounce; i++)
         {
+            
+            thisEvent.ray = RayType.UND;
+            thisEvent.scatter = ScatterType.UND;
             // Step 1: Check if the ray intersects with any rectangular light or mesh.
             // Use the radiance of whichever one (light source or mesh) that's closer.
             Optional<RectangularLight.LightHitResult> rayRectangularLightIntersectionResult = rayRectangularLightIntersection(ray, uniforms);
@@ -37,7 +56,9 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
             // If the ray does not intersect with any light source or mesh.
             if (!rayRectangularLightIntersectionResult.hasValue && !rayMeshIntersectionResult.hasValue)
             {
-                radiance += throughput * uniforms.ambientColor.xyz;
+                thisEvent.ray = RayType.Background;
+                thisEvent.scatter = ScatterType.Any;
+                retval[0] = float4(retval[0].xyz + throughput * uniforms.ambientColor.xyz, 1.0);
                 breakRendering = true;
                 break;
             }
@@ -48,9 +69,14 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
                 // renderLIght is set to false at a later point in code, for
                 // indirect illumination. This is because we've already accounted
                 // for it in the direct illumination.
+                thisEvent.ray = RayType.Light;
+                thisEvent.scatter = ScatterType.Any;
                 if (renderLight)
                 {
-                    radiance += throughput * rayRectangularLightIntersectionResult.value.radiance;
+                    retval[0] = float4(retval[0].xyz + throughput * rayRectangularLightIntersectionResult.value.radiance, 1.0);
+                    if (testLPE.advance(thisEvent, float4(throughput * rayRectangularLightIntersectionResult.value.radiance, 1.0))) {
+                        retval[1] = testLPE.getColor();
+                    }
                 }
                 if (depth == 0)
                 {
@@ -64,6 +90,8 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
             // If the ray intersects with the mesh, and mesh is closer than the light source,
             if (!rayRectangularLightIntersectionResult.hasValue || rayMeshIntersectionResult.hasValue && rayMeshIntersectionResult.value.closestHit.t < rayRectangularLightIntersectionResult.value.t)
             {
+                thisEvent.ray = RayType.Reflection;
+                
                 // Step 2: Get the Material Parameters for the hit point.
                 // Step 2a: Get the hit point and the triangle hit by the ray.
                 RayHitResult result = rayMeshIntersectionResult.value.closestHit;
@@ -85,16 +113,16 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
 
                 // Step 2b: Get the Material Parameters for the hit point.
                 PhysicsBasedParameters parameters = getHitPointParameters(uv, uniforms, hitTriangle, normal, barycentricCoord, hitPoint);
-                if (uniforms.visualizeLevelOfDetail || uniforms.visualizeAlbedo)
-                {
-                    float4 color = float4(float3(parameters.albedo), 1.0);
-                    return Optional<RayMeshSampleResult>(RayMeshSampleResult(result.t, normal, color));
-                }
+                // if (uniforms.visualizeLevelOfDetail || uniforms.visualizeAlbedo)
+                // {
+                //     float4 color = float4(float3(parameters.albedo), 1.0);
+                //     return Optional<RayMeshSampleResult>(RayMeshSampleResult<N>(result.t, normal, color));
+                // }
 
                 // Step 3: Compute the direct illumination at the hit point using the Material Parameters.
                 float3 rayOut = -ray.direction;
                 float3 directIllumination = getDirectIllumination(parameters, uniforms, rayOut, normal, hitPoint, rng);
-                radiance += directIllumination * throughput;
+                retval[0] = float4(retval[0].xyz + directIllumination * throughput, 1.0);
 
                 // TODO: Student implementation starts here.
                 // Step 4: Setup for Indirect Illumination by sampling the BRDF for
@@ -113,6 +141,18 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
                 {
                     renderLight = false;
                 }
+
+                switch (parameters.brdfType) {
+                    case 0: // lambertian
+                        thisEvent.ray = RayType.Reflection;
+                        thisEvent.scatter = ScatterType.Diffuse;
+                    case 1: // glossy
+                        thisEvent.ray = RayType.Reflection;
+                        thisEvent.scatter = ScatterType.Specular;
+                    case 2: // glass
+                        thisEvent.ray = RayType.Transmission;
+                        thisEvent.scatter = ScatterType.Specular;
+                };
 
                 // Step 4a: Sample BRDF for the next bounce.
 
@@ -150,6 +190,8 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
                 // TODO Step 4c: Student implementation ends here.
 
                 // TODO: Student implementation ends here.
+
+                testLPE.advance(thisEvent, float4(0));
             }
 
             if (!hitGlass)
@@ -163,5 +205,7 @@ public Optional<RayMeshSampleResult> meshSample(float2 uv, RendererUniform unifo
         }
     }
 
-    return Optional<RayMeshSampleResult>(RayMeshSampleResult(t, normalAtFirstHit, float4(radiance, 1.0)));
+    // Pixel<float4, N> retval = Pixel<float4, N>();
+    // retval[0] = float4(radiance, 1.0);
+    return Optional<RayMeshSampleResult<N>>(RayMeshSampleResult<N>(t, normalAtFirstHit, retval));
 }

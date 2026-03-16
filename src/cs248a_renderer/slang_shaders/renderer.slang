@@ -56,6 +56,8 @@ public struct RendererUniform
     public bool enableFresnelEffect;
     // Seed for RNG
     public uint seed;
+    // LPEs
+    public StructuredBuffer<LPEAutomaton<float4>> LPEs;
     // Debug flags.
     public bool renderDepth;
     public bool renderNormal;
@@ -76,14 +78,14 @@ public Pixel<float4,N> sample<let N : uint>(float2 uv, RendererUniform uniforms,
 {
     // Ray mesh intersection.
 
-    Optional<RayMeshSampleResult> rayMeshSampleRes = meshSample(uv, uniforms, rng);
+    Optional<RayMeshSampleResult<N>> rayMeshSampleRes = meshSample<N>(uv, uniforms, rng);
 
     Pixel<float4,N> retval = Pixel<float4,N>();
 
     retval[0] = uniforms.ambientColor;
     if (rayMeshSampleRes.hasValue)
     {
-        retval[0] = rayMeshSampleRes.value.color;
+        retval = rayMeshSampleRes.value.color;
     }
 
     // if (uniforms.renderDepth)
