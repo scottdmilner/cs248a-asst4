@@ -25,6 +25,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
     float distance = 0.0;
     Pixel<float3, N> pixel;
     uint lightIdx = uint(rng.next_1d() * uniforms.rectangularLightCount);
+    float3 albedo = float3(0);
 
     LPEAutomaton[N-1] lpes;
     for (uint e = 0; e < N-1; ++e) {
@@ -121,11 +122,9 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
 
                 // Step 2b: Get the Material Parameters for the hit point.
                 PhysicsBasedParameters parameters = getHitPointParameters(uv, uniforms, hitTriangle, normal, barycentricCoord, hitPoint);
-                // if (uniforms.visualizeLevelOfDetail || uniforms.visualizeAlbedo)
-                // {
-                //     float4 color = float4(float3(parameters.albedo), 1.0);
-                //     return Optional<RayMeshSampleResult>(RayMeshSampleResult<N>(result.t, normal, color));
-                // }
+                if (depth == 0 && i == 0) {
+                    albedo = parameters.albedo;
+                }
 
                 // Step 3: Compute the direct illumination at the hit point using the Material Parameters.
                 float3 rayOut = -ray.direction;
@@ -229,7 +228,11 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
         }
     }
 
-    pixel[N-1] = radiance;
+    if (uniforms.visualizeLevelOfDetail || uniforms.visualizeAlbedo) {
+        pixel[N-1] = albedo;
+    } else {
+        pixel[N-1] = radiance;
+    }
 
     Pixel<float4, N> retval;
     for (uint e = 0; e < N; ++e) {
