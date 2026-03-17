@@ -26,11 +26,13 @@ class RayType(Enum):
 class LPEEvent:
     ray: RayType
     scatter: ScatterType
+    lightTag: int = -1
 
     def get_this(self) -> dict:
         return {
             "ray": self.ray.value,
             "scatter": self.scatter.value,
+            "lightTag": self.lightTag,
         }
 
 

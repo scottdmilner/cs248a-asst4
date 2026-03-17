@@ -24,6 +24,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
     bool renderLight = true;
     float distance = 0.0;
     Pixel<float4, N> retval;
+    uint lightIdx = uint(rng.next_1d() * uniforms.rectangularLightCount);
 
     LPEAutomaton[N-1] lpes;
     for (uint e = 0; e < N-1; ++e) {
@@ -49,7 +50,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
             thisEvent.scatter = ScatterType.UND;
             // Step 1: Check if the ray intersects with any rectangular light or mesh.
             // Use the radiance of whichever one (light source or mesh) that's closer.
-            Optional<RectangularLight.LightHitResult> rayRectangularLightIntersectionResult = rayRectangularLightIntersection(ray, uniforms);
+            Optional<RectangularLight.LightHitResult> rayRectangularLightIntersectionResult = rayRectangularLightIntersection(ray, uniforms, lightIdx);
             Optional<RayMeshIntersectionResult> rayMeshIntersectionResult = rayMeshIntersection(ray, uniforms);
 
             // If the ray does not intersect with any light source or mesh.
@@ -63,8 +64,11 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
             }
 
             // If the ray intersects with the light source, and light source is closer than the mesh,
-            if (!rayMeshIntersectionResult.hasValue || rayRectangularLightIntersectionResult.hasValue && rayMeshIntersectionResult.value.closestHit.t > rayRectangularLightIntersectionResult.value.t)
-            {
+            if (
+                !rayMeshIntersectionResult.hasValue 
+                || rayRectangularLightIntersectionResult.hasValue 
+                && rayMeshIntersectionResult.value.closestHit.t > rayRectangularLightIntersectionResult.value.t
+            ){
                 // renderLIght is set to false at a later point in code, for
                 // indirect illumination. This is because we've already accounted
                 // for it in the direct illumination.
@@ -80,6 +84,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
 
                 thisEvent.ray = RayType.Light;
                 thisEvent.scatter = ScatterType.Any;
+                thisEvent.lightTag = lightIdx;
                 for (uint e = 0; e < N-1; ++e) {
                     if (lpes[e].advance(thisEvent)) {
                         retval[e] = retval[e] + float4(radiance, 1.0);
@@ -124,7 +129,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
 
                 // Step 3: Compute the direct illumination at the hit point using the Material Parameters.
                 float3 rayOut = -ray.direction;
-                float3 directIllumination = getDirectIllumination(parameters, uniforms, rayOut, normal, hitPoint, rng);
+                float3 directIllumination = getDirectIllumination(parameters, uniforms, rayOut, normal, hitPoint, rng, lightIdx);
                 radiance += directIllumination * throughput;
 
                 // TODO: Student implementation starts here.
@@ -159,6 +164,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
                         thisEvent.scatter = ScatterType.Specular;
                         break;
                 };
+                thisEvent.lightTag = -1;
 
                 // Step 4a: Sample BRDF for the next bounce.
 
@@ -215,6 +221,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
 
     thisEvent.ray = RayType.Light;
     thisEvent.scatter = ScatterType.Any;
+    thisEvent.lightTag = lightIdx;
 
     for (uint e = 0; e < N-1; ++e) {
         if (lpes[e].advance(thisEvent)) {

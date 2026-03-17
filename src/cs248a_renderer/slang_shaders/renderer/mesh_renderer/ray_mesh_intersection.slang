@@ -8,11 +8,13 @@ public struct RayMeshIntersectionResult
     public Triangle hitTriangle;
 }
 
-public Optional<RectangularLight.LightHitResult> rayRectangularLightIntersection(Ray ray, RendererUniform uniforms)
+public Optional<RectangularLight.LightHitResult> rayRectangularLightIntersection(Ray ray, RendererUniform uniforms, int lightIdx = -1)
 {
     Optional<RectangularLight.LightHitResult> closestLightHitResult = Optional<RectangularLight.LightHitResult>();
     for (int i = 0; i < uniforms.rectangularLightCount; i++)
     {
+        if (lightIdx > -1 && i != lightIdx) continue;
+
         Optional<RectangularLight.LightHitResult> lightHitResult = uniforms.rectangularLightBuf[i].hit(ray);
         if (lightHitResult.hasValue)
         {

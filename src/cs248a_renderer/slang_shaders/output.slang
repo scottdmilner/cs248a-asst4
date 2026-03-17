@@ -86,11 +86,12 @@ public enum ScatterType {
 public struct LPEEvent {
     public RayType ray;
     public ScatterType scatter;
-    // light group
+    public int lightTag;
 
     public __init() {
         ray = RayType.UND;
         scatter = ScatterType.UND;
+        lightTag = -1;
     }
 }
 
@@ -104,6 +105,11 @@ public bool operator==(LPEEvent a, LPEEvent b) {
            (a.ray == b.ray) 
         || ((a.ray == RayType.Any) && ((b.ray == RayType.Reflection) || (b.ray == RayType.Transmission))) 
         || ((b.ray == RayType.Any) && ((a.ray == RayType.Reflection) || (a.ray == RayType.Transmission)))
+    )
+    && (
+        (a.lightTag == b.lightTag)
+        || (a.lightTag == -1)
+        || (b.lightTag == -1)
     );
 }
 

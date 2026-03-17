@@ -153,12 +153,13 @@ public float3 evaluateDirectionalLightContribution(StructuredBuffer<DirectionalL
     return outgoingRadiance;
 }
 
-public float3 evaluateRectangularLightContribution(StructuredBuffer<RectangularLight> rectangularLightBuf, uint rectangularLightCount, float3 hitPoint, float3 fr, float3 normal, RendererUniform uniforms, inout RNG rng, bool lambertianScattering = false)
+public float3 evaluateRectangularLightContribution(StructuredBuffer<RectangularLight> rectangularLightBuf, uint rectangularLightCount, float3 hitPoint, float3 fr, float3 normal, RendererUniform uniforms, inout RNG rng, uint lightIdx, bool lambertianScattering = false)
 {
     float3 outgoingRadiance = float3(0.0);
     float fallOffFactor = 1.0;  // Never falls off with distance
-    for (int i = 0; i < rectangularLightCount; i++)
-    {
+    uint i = lightIdx;
+    // for (int i = 0; i < rectangularLightCount; i++)
+    // {
         // Monte Carlo Estimator of the irradiance from the rectangular light source.
         // It is integral of the BRDF over the rectangular light source.
         float3 accumulatedIrradiance = float3(0.0);
@@ -178,11 +179,11 @@ public float3 evaluateRectangularLightContribution(StructuredBuffer<RectangularL
         // Monte-Carlo Integration over.
 
         outgoingRadiance += fr * irradiance;
-    }
+    // }
     return outgoingRadiance;
 }
 
-public float3 getDirectIllumination(PhysicsBasedParameters parameters, RendererUniform uniforms, float3 rayOut, float3 normal, float3 hitPoint, inout RNG rng)
+public float3 getDirectIllumination(PhysicsBasedParameters parameters, RendererUniform uniforms, float3 rayOut, float3 normal, float3 hitPoint, inout RNG rng, uint lightIdx)
 {
     float3 outgoingRadiance = float3(0.0);
     float3 fr = float3(0.0);
@@ -240,7 +241,7 @@ public float3 getDirectIllumination(PhysicsBasedParameters parameters, RendererU
     {
         float3 pointLightContribution = evaluatePointLightContribution(uniforms.pointLightBuf, uniforms.pointLightCount, hitPoint, fr, normal, uniforms, lambertianScattering);
         float3 directionalLightContribution = evaluateDirectionalLightContribution(uniforms.directionalLightBuf, uniforms.directionalLightCount, hitPoint, fr, normal, uniforms, lambertianScattering);
-        float3 rectangularLightContribution = evaluateRectangularLightContribution(uniforms.rectangularLightBuf, uniforms.rectangularLightCount, hitPoint, fr, normal, uniforms, rng, lambertianScattering);
+        float3 rectangularLightContribution = evaluateRectangularLightContribution(uniforms.rectangularLightBuf, uniforms.rectangularLightCount, hitPoint, fr, normal, uniforms, rng, lightIdx, lambertianScattering);
         outgoingRadiance = pointLightContribution + directionalLightContribution + rectangularLightContribution;
     }
 
