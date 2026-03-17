@@ -88,17 +88,19 @@ public Pixel<float4,N> sample<let N : uint>(float2 uv, RendererUniform uniforms,
         retval = rayMeshSampleRes.value.color;
     }
 
-    // if (uniforms.renderDepth)
-    // {
-    //     // Map depth to [0, 1] range for visualization
-    //     return float4(float3(rayMeshSampleRes.value.t) / 50, 1.0);
-    // }
+    if (uniforms.renderDepth)
+    {
+        // Map depth to [0, 1] range for visualization
+        retval[0] = float4(float3(rayMeshSampleRes.value.t) / 50, 1.0);
+        return retval;
+    }
 
-    // if (uniforms.renderNormal)
-    // {
-    //     // Map normal from [-1, 1] to [0, 1] range for visualization
-    //     return float4(rayMeshSampleRes.value.normal * 0.5 + 0.5, 1.0);
-    // }
+    if (uniforms.renderNormal)
+    {
+        // Map normal from [-1, 1] to [0, 1] range for visualization
+        retval[0] = float4(rayMeshSampleRes.value.normal * 0.5 + 0.5, 1.0);
+        return retval;
+    }
 
     // Ray volume intersection.
     float tMax = rayMeshSampleRes.hasValue ? rayMeshSampleRes.value.t : float.maxValue;
@@ -119,7 +121,6 @@ public Pixel<float4, N> render<let N : uint>(uint2 tid, RendererUniform uniforms
     // float2 uv = (float2(tid) + 0.5) / float2(uniforms.camera.canvasSize);
     // return sample(uv, uniforms);
 
-    // float4 outputColor = float4(0.0, 0.0, 0.0, 0.0);
     Pixel<float4,N> outputColor = Pixel<float4,N>();
     RNG rng = RNG(tid, (tid.y * uniforms.camera.canvasSize.x + tid.x) * 10000 + uniforms.seed);
 
@@ -128,9 +129,6 @@ public Pixel<float4, N> render<let N : uint>(uint2 tid, RendererUniform uniforms
     float2 uv = (float2(tid) + offset) / float2(uniforms.camera.canvasSize);
     outputColor.increment(sample<N>(uv, uniforms, rng));
 
-    // float4 retval = currentColor[0] * (uniforms.numSamples - 1) / uniforms.numSamples + outputColor / uniforms.numSamples;
-    // Pixel<float4,N> retval = currentColor.mult(uniforms.numSamples - 1).div(uniforms.numSamples).plus(outputColor.div(uniforms.numSamples));
-    // return retval;
     return currentColor * (uniforms.numSamples - 1) / uniforms.numSamples + outputColor / uniforms.numSamples;
 }
 

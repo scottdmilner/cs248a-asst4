@@ -23,7 +23,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
     const float EPSILON = 1e-2;
     bool renderLight = true;
     float distance = 0.0;
-    Pixel<float4, N> retval;
+    Pixel<float3, N> pixel;
     uint lightIdx = uint(rng.next_1d() * uniforms.rectangularLightCount);
 
     LPEAutomaton[N-1] lpes;
@@ -87,7 +87,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
                 thisEvent.lightTag = lightIdx;
                 for (uint e = 0; e < N-1; ++e) {
                     if (lpes[e].advance(thisEvent)) {
-                        retval[e] = retval[e] + float4(radiance, 1.0);
+                        pixel[e] = pixel[e] + radiance;
                     }
                 }
 
@@ -225,11 +225,16 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
 
     for (uint e = 0; e < N-1; ++e) {
         if (lpes[e].advance(thisEvent)) {
-            retval[e] = retval[e] + float4(radiance, 0.0);
+            pixel[e] = pixel[e] + radiance;
         }
     }
 
-    retval[N-1] = float4(radiance, 1.0);
+    pixel[N-1] = radiance;
+
+    Pixel<float4, N> retval;
+    for (uint e = 0; e < N; ++e) {
+        retval[e] = float4(pixel[e], 1.0);
+    }
 
     return Optional<RayMeshSampleResult<N>>(RayMeshSampleResult<N>(t, normalAtFirstHit, retval));
 }
