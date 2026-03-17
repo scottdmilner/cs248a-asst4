@@ -95,8 +95,16 @@ public struct LPEEvent {
 }
 
 public bool operator==(LPEEvent a, LPEEvent b) {
-    return ((a.scatter == b.scatter) || (a.scatter == ScatterType.Any) || (b.scatter == ScatterType.Any)) 
-            && ((a.ray == b.ray) || (a.ray == RayType.Any) || (b.ray == RayType.Any));
+    return (
+           (a.scatter == b.scatter) 
+        || (a.scatter == ScatterType.Any) 
+        || (b.scatter == ScatterType.Any)
+       ) 
+    && (
+           (a.ray == b.ray) 
+        || ((a.ray == RayType.Any) && ((b.ray == RayType.Reflection) || (b.ray == RayType.Transmission))) 
+        || ((b.ray == RayType.Any) && ((a.ray == RayType.Reflection) || (a.ray == RayType.Transmission)))
+    );
 }
 
 public struct LPEState {

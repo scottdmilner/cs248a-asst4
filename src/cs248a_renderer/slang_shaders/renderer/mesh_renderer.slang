@@ -82,7 +82,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
                 thisEvent.scatter = ScatterType.Any;
                 for (uint e = 0; e < N-1; ++e) {
                     if (lpes[e].advance(thisEvent)) {
-                        retval[e] = float4(radiance, 1.0);
+                        retval[e] = retval[e] + float4(radiance, 1.0);
                     }
                 }
 
@@ -202,17 +202,6 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
                 }
             }
 
-            if (!renderLight) {
-                thisEvent.ray = RayType.Light;
-                thisEvent.scatter = ScatterType.Any;
-
-                for (uint e = 0; e < N-1; ++e) {
-                    if (lpes[e].advance(thisEvent)) {
-                        retval[e] = float4(radiance, 1.0);
-                    }
-                }
-            }
-
             if (!hitGlass)
             {
                 break;
@@ -221,6 +210,15 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
         if (breakRendering)
         {
             break;
+        }
+    }
+
+    thisEvent.ray = RayType.Light;
+    thisEvent.scatter = ScatterType.Any;
+
+    for (uint e = 0; e < N-1; ++e) {
+        if (lpes[e].advance(thisEvent)) {
+            retval[e] = retval[e] + float4(radiance, 0.0);
         }
     }
 
