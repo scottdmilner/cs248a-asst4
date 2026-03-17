@@ -36,13 +36,6 @@ public Pixel<T,N> operator+<T :IArithmetic, let N : uint>(Pixel<T,N> a, Pixel<T,
     }
     return retval;
 }
-// public Pixel<vector<float,4>,N> operator+<float4, let N : uint>(Pixel<vector<float,4>,N> a, float3 b) {
-//     Pixel<vector<float,4>,N> retval = Pixel<vector<float,4>,N>();
-//     for (uint i = 0; i < N; ++i) {
-//         retval[i] = a[i] + vector<float,4>(b, 0.0);
-//     }
-//     return retval;
-// }
 
 public Pixel<T,N> operator+<T :IArithmetic, let N : uint>(Pixel<T,N> a, uint b) {
     Pixel<T,N> retval = Pixel<T,N>();
@@ -94,6 +87,7 @@ public struct LPEEvent {
     public RayType ray;
     public ScatterType scatter;
     // light group
+
     public __init() {
         ray = RayType.UND;
         scatter = ScatterType.UND;
@@ -105,64 +99,60 @@ public bool operator==(LPEEvent a, LPEEvent b) {
             && ((a.ray == b.ray) || (a.ray == RayType.Any) || (b.ray == RayType.Any));
 }
 
-public struct LPEState<T : IArithmetic> {
+public struct LPEState {
     LPEEvent event;
     uint[MAX_BRANCHES] next_idxs;
-    T currColor;
+    bool isTerminal;
 
     public bool test(LPEEvent next_event) {
         return event == next_event;
     }
 }
 
-public struct LPEAutomaton<T : IArithmetic, let C = MAX_LPE_NODE_COUNT> {
-    LPEState<T>[C] nodes;
+public struct LPEAutomaton<let C = MAX_LPE_NODE_COUNT> {
+    LPEState[C] nodes;
     bool[C] node_active;
-    uint currentNode; // should be named final node or something
     bool isActive;
-    bool completed;
 
     public __init() {
         for (uint i = 0; i < C; ++i) {
             node_active[i] = i == 0;
         }
-        currentNode = 0;
         isActive = true;
-        completed = false;
-    }
-
-    public T getColor() {
-        return nodes[currentNode].currColor;
     }
 
     [mutating]
-    public bool advance(LPEEvent event, T color) {
-        if (!isActive) return completed;
+    public bool advance(LPEEvent event) {
+        if (!isActive) return false;
 
-        // LPEState<T> curr = nodes[currentNode];
+        bool[C] active_idxs;
 
-        bool[C] active_idxs = node_active; // deep copy?
+        for (uint i = 0; i < C; ++i) {
+            active_idxs[i] = node_active[i];
+            node_active[i] = false;
+        }
+
+        bool completed = false;
         
         for (uint i = 0; i < C; ++i) { // for each node in FSA
             if (!active_idxs[i]) continue;
 
-            node_active[i] = false;
-            LPEState<T> node = nodes[i];
+            LPEState node = nodes[i];
             if (!node.test(event)) continue;
+
+            if (node.isTerminal) {
+                completed = true;
+                break;
+            }
 
             for (uint n = 0; n < MAX_BRANCHES; ++n) {
                 uint next_idx = node.next_idxs[n];
-                if (n == 0 && next_idx == 0) { // this is the end
-                    completed = true;
-                    currentNode = i;
-                } else if (next_idx > 0) {
-                    nodes[next_idx].currColor = (node.currColor + color);
+                if (next_idx > 0) {
                     node_active[next_idx] = true;
                 }
             }
         }
 
-        // isValid = any(node_active)
         isActive = false;
         for (uint i = 0; i < C; ++i) {
             if (node_active[i])

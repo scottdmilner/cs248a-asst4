@@ -57,7 +57,7 @@ public struct RendererUniform
     // Seed for RNG
     public uint seed;
     // LPEs
-    public StructuredBuffer<LPEAutomaton<float4>> LPEs;
+    public StructuredBuffer<LPEAutomaton> LPEs;
     // Debug flags.
     public bool renderDepth;
     public bool renderNormal;

@@ -8,6 +8,7 @@ public struct SampleBRDFResult
     public float3 fr;
     public float3 sampledDirection;
     public float sampledPdf;
+    public uint brdfType;
 }
 
 public float3 getSampleIrradiance(LightSample lightSample, float3 normal, bool isLambertian, float fallOffFactor = 1.0)
@@ -251,6 +252,8 @@ public SampleBRDFResult sampleBRDF(PhysicsBasedParameters parameters, float3 ray
     float3 fr = float3(0.0);
     float3 sampledDirection = float3(0.0);
     float sampledPdf = 0.0;
+    uint brdfType = parameters.brdfType;
+
     if (parameters.brdfType == 0)
     {
         // Sample Lambertian BRDF
@@ -288,6 +291,7 @@ public SampleBRDFResult sampleBRDF(PhysicsBasedParameters parameters, float3 ray
                 fr = brdf.evaluate();
                 sampledDirection = brdf.sample(rayOut, normal);
                 glassPdf = brdf.pdf(sampledDirection, rayOut, normal);
+                brdfType = 1;
             } else {
                 GlassBRDF brdf = GlassBRDF(parameters.albedo, parameters.ior);
                 fr = brdf.evaluate();
@@ -326,5 +330,5 @@ public SampleBRDFResult sampleBRDF(PhysicsBasedParameters parameters, float3 ray
         sampledPdf = brdf.pdf(sampledDirection, rayOut, normal);
     }
 
-    return SampleBRDFResult(fr, sampledDirection, sampledPdf);
+    return SampleBRDFResult(fr, sampledDirection, sampledPdf, brdfType);
 }

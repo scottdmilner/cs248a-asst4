@@ -19,6 +19,7 @@ class RayType(Enum):
     Reflection = 3
     Transmission = 4
     Light = 5
+    Background = 6
 
 @dataclass
 class LPEEvent:
@@ -50,36 +51,43 @@ class LPE:
     def get_this(self) -> dict:
         self.update_param()
 
+        nodes = [
+            {
+                "next_idxs": [1,0,0,0],
+                "event": {"ray": RayType.Camera.value, "scatter": ScatterType.Any.value},
+                "isTerminal": False,
+            },
+            {
+                "next_idxs": [2,0,0,0],
+                "event": {"ray": RayType.Any.value, "scatter": ScatterType.Any.value},
+                "isTerminal": False,
+            },
+            # {
+            #     "next_idxs": [2,3,0,0],
+            #     "event": {"ray": RayType.Any.value, "scatter": ScatterType.Specular.value},
+            #     "isTerminal": False,
+            # },
+            {
+                "next_idxs": [0,0,0,0],
+                "event": {"ray": RayType.Light.value, "scatter": ScatterType.Any.value},
+                "isTerminal": True,
+            }, 
+        ]
+
         return {
             "nodes": [
-                {
-                    "currColor": glm.vec4(0.0, 0.0, 0.0, 1.0),
-                    "next_idxs": [1,0,0,0],
-                    "event": {"ray": RayType.Camera.value, "scatter": ScatterType.Any.value},
-                },
-                {
-                    "currColor": glm.vec4(0.0, 0.0, 0.0, 1.0),
-                    "next_idxs": [1,2,0,0],
-                    "event": {"ray": RayType.Any.value, "scatter": ScatterType.Any.value},
-                },
-                {
-                    "currColor": glm.vec4(0.0, 0.0, 0.0, 1.0),
-                    "next_idxs": [0,0,0,0],
-                    "event": {"ray": RayType.Light.value, "scatter": ScatterType.Any.value},
-                },
+                *nodes,
                 *[
                     {
-                        "currColor": glm.vec4(0.0, 0.0, 0.0, 1.0),
                         "next_idxs": [1,0,0,0],
                         "event": {"ray": RayType.Camera.value, "scatter": ScatterType.Any.value},
+                        "isTerminal": False,
                     }
-                    for i in range(13) # pad out the 16
+                    for i in range(16 - len(nodes)) # pad out the 16
                 ]
             ],
-            "node_active": [True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False],
-            "currentNode": 0,
+            "node_active": [True if i == 0 else False for i in range(16)],
             "isActive": True,
-            "completed": False
         }
 
 
@@ -90,7 +98,7 @@ def create_lpe_buf(
     device = module.device
     buffer = spy.NDBuffer(
         device=device,
-        dtype=module["LPEAutomaton<float4>"].as_struct(),
+        dtype=module.LPEAutomaton.as_struct(),
         shape=(max(len(lpes), 1),),
     )
     cursor = buffer.cursor()
