@@ -1,10 +1,11 @@
-from pyglm import glm
 from dataclasses import dataclass, field
 from enum import Enum
 import slangpy as spy
 
 
-MAX_BRANCHES = 0
+MAX_BRANCHES = 4
+MAX_NODES = 16
+
 
 class ScatterType(Enum):
     UND = 0
@@ -26,70 +27,44 @@ class LPEEvent:
     ray: RayType
     scatter: ScatterType
 
+    def get_this(self) -> dict:
+        return {
+            "ray": self.ray.value,
+            "scatter": self.scatter.value,
+        }
+
 
 @dataclass
 class LPEState:
-    currColor: glm.vec4 = glm.vec4(0.0, 0.0, 0.0, 1.0)
-    next_idxs: list[int] = field(default_factory=lambda: [0] * MAX_BRANCHES)
     event: LPEEvent = field(default_factory=lambda: LPEEvent(RayType.Any, ScatterType.Any))
+    next_idxs: list[int] = field(default_factory=lambda: [0] * MAX_BRANCHES)
+    isTerminal: bool = False
 
     def get_this(self) -> dict:
-        return {}
+        return {
+            "event": self.event.get_this(),
+            "next_idxs": self.next_idxs,
+            "isTerminal": self.isTerminal,
+        }
 
 
 @dataclass
 class LPE:
     nodes: list[LPEState]
-    node_active: list[bool]
-    currentNode: int = 0
+    node_active: list[bool] = field(default_factory=lambda: [
+        True if i == 0 else False for i in range(MAX_NODES)
+    ])
     isActive: bool = True
-    completed: bool = False
-
-    def update_param(self):
-        pass
 
     def get_this(self) -> dict:
-        self.update_param()
-
-        nodes = [
-            {
-                "next_idxs": [1,0,0,0],
-                "event": {"ray": RayType.Camera.value, "scatter": ScatterType.Any.value},
-                "isTerminal": False,
-            },
-            {
-                "next_idxs": [2,0,0,0],
-                "event": {"ray": RayType.Any.value, "scatter": ScatterType.Any.value},
-                "isTerminal": False,
-            },
-            # {
-            #     "next_idxs": [2,3,0,0],
-            #     "event": {"ray": RayType.Any.value, "scatter": ScatterType.Specular.value},
-            #     "isTerminal": False,
-            # },
-            {
-                "next_idxs": [0,0,0,0],
-                "event": {"ray": RayType.Light.value, "scatter": ScatterType.Any.value},
-                "isTerminal": True,
-            }, 
-        ]
-
         return {
-            "nodes": [
-                *nodes,
-                *[
-                    {
-                        "next_idxs": [1,0,0,0],
-                        "event": {"ray": RayType.Camera.value, "scatter": ScatterType.Any.value},
-                        "isTerminal": False,
-                    }
-                    for i in range(16 - len(nodes)) # pad out the 16
-                ]
-            ],
-            "node_active": [True if i == 0 else False for i in range(16)],
-            "isActive": True,
+            "nodes": [n.get_this() for n in [
+                *self.nodes,
+                *[LPEState(isTerminal=True) for i in range(MAX_NODES - len(self.nodes))]
+            ]],
+            "node_active": self.node_active,
+            "isActive": self.isActive
         }
-
 
 
 def create_lpe_buf(
@@ -102,7 +77,8 @@ def create_lpe_buf(
         shape=(max(len(lpes), 1),),
     )
     cursor = buffer.cursor()
-    for idx, lpe in enumerate([LPE([],[],0,True)]): # test LPE
+
+    for idx, lpe in enumerate(lpes): # test LPE
         cursor[idx].write(lpe.get_this())
     cursor.apply()
 

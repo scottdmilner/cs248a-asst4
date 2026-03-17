@@ -58,7 +58,7 @@ class Renderer:
     _bvh_node_buf: spy.NDBuffer | None
     _use_bvh: bool = False
     _max_nodes: int = 0
-    _lpe_buf: spy.NDBuffer
+    _lpe_buf: spy.NDBuffer | None
 
     _sphere_sdf_buf: spy.NDBuffer | None
     _sphere_sdf_count: int | None
@@ -315,7 +315,7 @@ class Renderer:
         self._rectangular_light_count = len(rectangular_lights)
     
     def build_lpes(self, lpes: list[LPE]) -> None:
-        self._lpe_buf = create_lpe_buf(self.output_module, [1])
+        self._lpe_buf = create_lpe_buf(self.output_module, lpes)
 
     def _build_render_uniforms(
         self,

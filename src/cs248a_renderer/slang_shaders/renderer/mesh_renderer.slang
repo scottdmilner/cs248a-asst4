@@ -11,12 +11,6 @@ public struct RayMeshSampleResult<let N: uint>
     public float t;
     public float3 normal;
     public Pixel<float4,N> color;
-    // public float4 color;
-}
-
-[ForceInline]
-public void evalLPEs(LPEAutomaton automaton, LPEEvent event) {
-
 }
 
 public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, RendererUniform uniforms, inout RNG rng)
@@ -31,12 +25,17 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
     float distance = 0.0;
     Pixel<float4, N> retval;
 
-    LPEAutomaton testLPE = uniforms.LPEs[0];
+    LPEAutomaton[N-1] lpes;
+    for (uint e = 0; e < N-1; ++e) {
+        lpes[e] = uniforms.LPEs[e];
+    }
 
     LPEEvent thisEvent = LPEEvent();
     thisEvent.ray = RayType.Camera;
 
-    testLPE.advance(thisEvent);
+    for (uint e = 0; e < N-1; ++e) {
+        lpes[e].advance(thisEvent);
+    }
 
     for (int depth = 0; depth < uniforms.pathTraceDepth; depth++)
     {
@@ -81,8 +80,10 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
 
                 thisEvent.ray = RayType.Light;
                 thisEvent.scatter = ScatterType.Any;
-                if (testLPE.advance(thisEvent)) {
-                    retval[1] = float4(radiance, 1.0);
+                for (uint e = 0; e < N-1; ++e) {
+                    if (lpes[e].advance(thisEvent)) {
+                        retval[e] = float4(radiance, 1.0);
+                    }
                 }
 
                 breakRendering = true;
@@ -196,14 +197,19 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
 
                 // TODO: Student implementation ends here.
 
-                testLPE.advance(thisEvent);
+                for (uint e = 0; e < N-1; ++e) {
+                    lpes[e].advance(thisEvent);
+                }
             }
 
             if (!renderLight) {
                 thisEvent.ray = RayType.Light;
                 thisEvent.scatter = ScatterType.Any;
-                if (testLPE.advance(thisEvent)) {
-                    retval[1] = float4(radiance, 1.0);
+
+                for (uint e = 0; e < N-1; ++e) {
+                    if (lpes[e].advance(thisEvent)) {
+                        retval[e] = float4(radiance, 1.0);
+                    }
                 }
             }
 
@@ -218,7 +224,7 @@ public Optional<RayMeshSampleResult<N>> meshSample<let N: uint>(float2 uv, Rende
         }
     }
 
-    retval[0] = float4(radiance, 1.0);
+    retval[N-1] = float4(radiance, 1.0);
 
     return Optional<RayMeshSampleResult<N>>(RayMeshSampleResult<N>(t, normalAtFirstHit, retval));
 }
