@@ -1,3 +1,9 @@
+This is my final project for Stanford's CS 248A (Rendering, Geometry, Image Manipulation). I learned how to implement Light Path Expressions (LPEs), using my [CS 248A assignment 3](https://github.com/stanford-cs248/asst3) project as starter code.
+
+View the code diff [here](https://github.com/scottdmilner/cs248a-asst4/compare/2b8cf7e..main) to see what I added for this project or check out the results in [final.ipynb](notebooks/assignment4/final.ipynb).
+
+---
+
 # CS 248A Assignments Repository
 
 This repository contains the code and resources for the Stanford CS 248A assignments. Follow the instructions below to set up the environment.
