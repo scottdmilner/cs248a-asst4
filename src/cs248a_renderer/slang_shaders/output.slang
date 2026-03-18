@@ -145,6 +145,7 @@ public struct LPEAutomaton<let C = MAX_LPE_NODE_COUNT> {
             active_idxs[i] = node_active[i];
             node_active[i] = false;
         }
+        isActive = false;
 
         bool completed = false;
         
@@ -163,14 +164,9 @@ public struct LPEAutomaton<let C = MAX_LPE_NODE_COUNT> {
                 uint next_idx = node.next_idxs[n];
                 if (next_idx > 0) {
                     node_active[next_idx] = true;
+                    isActive = true;
                 }
             }
-        }
-
-        isActive = false;
-        for (uint i = 0; i < C; ++i) {
-            if (node_active[i])
-                isActive = true;
         }
 
         return completed;
